@@ -6,9 +6,13 @@
 3. Spring Shell 2
 4. Htmlunit
 
-To run the test, please download the project and from the root run the maven command: mvn clean install spring-boot:run
-On the command prompt, you will see a prompt scrape-shell:>
-Enter the command: scrapeweb <URL>
+## The test is built using Maven.
+
+## To run the project.
+
+* Download the project and from the root run the maven command: mvn clean install spring-boot:run
+* On the command prompt, you will see a prompt scrape-shell:>
+* Enter the command: scrapeweb <URL>
 
 ## The URL's tested are:
 https://www.sainsburys.co.uk/webapp/wcs/stores/servlet/CategoryDisplay?langId=44&categoryId=185749&storeId=10151&krypto=ra2ZlCQ%2BdFvgpXxQq6xOXGwJdgBGKCxF0kd4Nhcvy0%2Bq0XchDxVOTHXSNzvKu3WccKFNZljdIOdffi8D2PKgt7TLuB85bVzh0WHo0oW5jT6z1%2B9BvXpEqU38Pb2LV1j8GmPeEjG9qNl3TBte0QXliIHULjbAQTiN%2FGvHQLhqTFlUGh14enHxA8zFrEXMTt9k1nqW5IZBj1fgqezFqQruQDdi9KYcFLF%2FMpuKpLEA37zh%2B1pR%2Fi5JTnAWr%2Bpq5qszkqCMi8QtVFhZv%2B0VOYa8fd68eZiu5s6Fl07Vbwh9qkaX9CqMky%2FSk1TKZQOZcoIurEXEkpl41HXjckTQJylkWZjFr%2FMVAds117d0oE%2FwaparluuDwpthKT%2B%2B%2FabZbr3k#langId=44&storeId=10151&catalogId=10123&categoryId=185749&parent_category_rn=12518&top_category=12518&pageSize=20&orderBy=FAVOURITES_FIRST&searchTerm=&beginIndex=0&hideFilters=true
