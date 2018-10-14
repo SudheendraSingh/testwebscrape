@@ -16,6 +16,8 @@ import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Service;
 
 import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
@@ -27,9 +29,23 @@ import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.sainsbury.scrape.model.RipeFruit;
 
 @Service
+@ConfigurationProperties("proxy")
 public class FruitScrapeServiceImpl implements FruitScrapeService {
 
+	private static final String SINGLE_DECIMAL_FORMAT = "#0.0";
+	private static final String SIZE_KB = "Kb";
+	private static final String ZERO_SIZE = "0.0Kb";
+	private static final String XPATH_DESCRIPTION = "//h3[text()='Description']";
+	private static final String XPATH_UNIT_PRICE = "//div[@class='pricing']/p[@class='pricePerUnit']";
+	private static final String XPATH_TITLE = "//div[@class='productTitleDescriptionContainer']/h1";
+	private static final String XPATH_ANCHORS = "//div[@class='productInfo']/h3/a";
 	private static Logger logger = LogManager.getLogger();
+
+	@Value("${proxy.host}")
+	private String proxyHost;
+
+	@Value("${proxy.port}")
+	private Integer proxyPort;
 
 	@Override
 	public List<RipeFruit> getRipeFruitsAfterScraping(String urlToScrape) {
@@ -37,7 +53,7 @@ public class FruitScrapeServiceImpl implements FruitScrapeService {
 		List<RipeFruit> ripeFruits = new ArrayList<>();
 		try {
 			HtmlPage ripeAndReadyPage = webClient.getPage(urlToScrape);
-			List<HtmlAnchor> ripeAndReadyFruitAnchors = ripeAndReadyPage.getByXPath("//div[@class='productInfo']/h3/a");
+			List<HtmlAnchor> ripeAndReadyFruitAnchors = ripeAndReadyPage.getByXPath(XPATH_ANCHORS);
 			if (ripeAndReadyFruitAnchors.isEmpty()) {
 				logger.info("No ripe and ready fruits found !");
 				return ripeFruits;
@@ -61,8 +77,10 @@ public class FruitScrapeServiceImpl implements FruitScrapeService {
 		webClient.getOptions().setCssEnabled(false);
 		webClient.getOptions().setJavaScriptEnabled(false);
 		webClient.getOptions().setTimeout(12000);
-		ProxyConfig proxyConfig = new ProxyConfig("10.6.20.5", 8887);
-		webClient.getOptions().setProxyConfig(proxyConfig);
+		if (StringUtils.isNotBlank(proxyHost)) {
+			ProxyConfig proxyConfig = new ProxyConfig(proxyHost, proxyPort);
+			webClient.getOptions().setProxyConfig(proxyConfig);
+		}
 		return webClient;
 	}
 
@@ -73,11 +91,9 @@ public class FruitScrapeServiceImpl implements FruitScrapeService {
 	 */
 	private RipeFruit getFruitDetails(HtmlPage ripeAndReadyFruitPage) throws IOException {
 		String webPageSize = getWebPageSize(ripeAndReadyFruitPage.getUrl());
-		HtmlElement title = (HtmlElement) ripeAndReadyFruitPage
-				.getByXPath("//div[@class='productTitleDescriptionContainer']/h1").get(0);
-		HtmlElement unitPrice = (HtmlElement) ripeAndReadyFruitPage
-				.getByXPath("//div[@class='pricing']/p[@class='pricePerUnit']").get(0);
-		List<HtmlElement> descriptionElementList = ripeAndReadyFruitPage.getByXPath("//h3[text()='Description']");
+		HtmlElement title = (HtmlElement) ripeAndReadyFruitPage.getByXPath(XPATH_TITLE).get(0);
+		HtmlElement unitPrice = (HtmlElement) ripeAndReadyFruitPage.getByXPath(XPATH_UNIT_PRICE).get(0);
+		List<HtmlElement> descriptionElementList = ripeAndReadyFruitPage.getByXPath(XPATH_DESCRIPTION);
 		return new RipeFruit(title.getTextContent(), webPageSize, getUnitPrice(unitPrice.getTextContent()),
 				getDescription(descriptionElementList));
 
@@ -92,24 +108,31 @@ public class FruitScrapeServiceImpl implements FruitScrapeService {
 	 * @throws FailingHttpStatusCodeException
 	 * @throws IOException
 	 */
-	private static String getWebPageSize(URL url) throws FailingHttpStatusCodeException, IOException {
-		NumberFormat formatter = new DecimalFormat("#0.0");
+	private String getWebPageSize(URL url) throws FailingHttpStatusCodeException, IOException {
+		NumberFormat formatter = new DecimalFormat(SINGLE_DECIMAL_FORMAT);
 		Double webPageSize = 0.0;
-		Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress("10.6.20.5", 8887));
-		URLConnection openConnection = url.openConnection(proxy);
+		URLConnection openConnection = null;
+		if (StringUtils.isNotBlank(proxyHost)) {
+			Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost, proxyPort));
+			openConnection = url.openConnection(proxy);
+		} else {
+			openConnection = url.openConnection();
+		}
+
 		try (BufferedReader in = new BufferedReader(new InputStreamReader(openConnection.getInputStream()))) {
 			Stream<String> lines = in.lines();
 			webPageSize += lines.mapToInt(String::length).sum();
 			lines.close();
 		}
 		if (webPageSize > 1000) {
-			return new StringBuilder(formatter.format(webPageSize / 1000)).append("Kb").toString();
+			return new StringBuilder(formatter.format(webPageSize / 1000)).append(SIZE_KB).toString();
 		}
-		return "0.0Kb";
+		return ZERO_SIZE;
 	}
 
 	/**
-	 * This method returns the unit price after stripping £ symbol and some suffix.
+	 * This method returns the unit price after stripping £ symbol and some
+	 * suffix.
 	 * 
 	 * @param price
 	 *            the price from the web page
